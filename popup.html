@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root { --accent: #d97757; --accent-dark: #c4633f; --text: #222; --muted: #888; --soft: #f6f6f6; --seg: #eee; --line: #e6e6e6; --bg: #fff; --warn: #c0392b; }
+    * { box-sizing: border-box; }
+    body { width: 360px; margin: 0; padding: 14px; font: 13px/1.5 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; color: var(--text); background: var(--bg); }
+    button { font: inherit; cursor: pointer; }
+    .hidden { display: none !important; }
+
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    h1 { font-size: 15px; margin: 0; }
+    .icon-btn { border: 0; background: none; padding: 2px 4px; color: var(--muted); font-size: 16px; line-height: 1; border-radius: 6px; }
+    .icon-btn:hover { color: var(--accent); }
+
+    /* sliding segmented switch (same as the translate extension) */
+    .seg { position: relative; display: flex; padding: 3px; border-radius: 9px; background: var(--seg); margin-bottom: 12px; }
+    .seg .thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 7px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+    .seg[data-v="1"] .thumb { transform: translateX(100%); }
+    .seg button { position: relative; flex: 1; margin: 0; padding: 5px 0; border: 0; background: none; color: #666; border-radius: 7px; line-height: 1.3; }
+    .seg button.active { color: var(--accent); font-weight: 600; }
+    .seg button small { display: block; font-size: 11px; font-weight: 400; color: #999; }
+    .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    .status { display: flex; align-items: center; gap: 8px; padding: 18px 4px; color: var(--muted); }
+    .spin { width: 14px; height: 14px; border: 2px solid var(--seg); border-top-color: var(--accent); border-radius: 50%; animation: s .8s linear infinite; flex: none; }
+    @keyframes s { to { transform: rotate(360deg); } }
+    .status.err { color: var(--warn); }
+
+    .status.slim { padding: 0 2px 10px; font-size: 12px; }
+    .filled { font-size: 12px; color: var(--muted); margin: -2px 0 8px; padding-left: 8px; border-left: 2px solid var(--accent); }
+    .filled b { color: var(--accent); font-weight: 500; }
+    .form .cl label { color: var(--accent); }
+    .form .cl input, .form .cl textarea, .form .cl select { border-color: #f0c9b8; }
+
+    .primary { border: 0; border-radius: 6px; background: var(--accent); color: #fff; padding: 6px 12px; }
+    .primary:hover { background: var(--accent-dark); }
+    .plain { border: 0; border-radius: 6px; background: var(--seg); color: #555; padding: 6px 12px; }
+
+    .label { display: flex; align-items: center; justify-content: space-between; margin: 0 0 4px; font-size: 12px; color: var(--muted); }
+    .box { position: relative; padding: 9px 10px; border-radius: 8px; background: var(--soft); margin-bottom: 10px; word-break: break-word; }
+    .box .cite { padding-left: 2em; text-indent: -2em; user-select: text; }
+    .line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .line + .line { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+    .line .cite { padding: 0; text-indent: 0; }
+    .copy { flex: none; border: 0; background: none; color: var(--accent); padding: 0 2px; font-size: 12px; }
+    .copy.done { color: #2a8; }
+    .page { width: 52px; padding: 1px 6px; border: 1px solid #ddd; border-radius: 5px; font: inherit; font-size: 12px; color: var(--text); background: #fff; }
+    .page:focus, .form input:focus, .form textarea:focus, .form select:focus, #key:focus { outline: none; border-color: var(--accent); }
+
+    .missing { font-size: 12px; color: var(--muted); margin: -2px 0 10px; }
+    .missing b { color: var(--warn); font-weight: 500; }
+    .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 12px; }
+    .link:hover { text-decoration: underline; }
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #aaa; }
+    .foot .src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .foot .acts { display: flex; gap: 12px; flex: none; }
+    .note { font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+
+    .form { margin: 4px 0 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .form label { display: block; font-size: 11px; color: var(--muted); }
+    .form .w2 { grid-column: span 2; } .form .w3 { grid-column: span 3; }
+    .form input, .form textarea, .form select { width: 100%; padding: 4px 6px; border: 1px solid #ddd; border-radius: 6px; font: inherit; font-size: 12px; color: var(--text); background: #fff; }
+    .form textarea { resize: vertical; min-height: 44px; }
+
+    .settings label.field { display: block; margin: 0 0 4px; }
+    #key { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px; }
+    #save { margin-top: 10px; width: 100%; padding: 7px; }
+    #saveMsg { color: #2a8; font-size: 12px; min-height: 18px; margin-top: 4px; }
+    .hint { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="heading">引用助手</h1>
+    <button class="icon-btn" id="gear" title="设置">⚙</button>
+  </div>
+
+  <!-- main view -->
+  <div id="main">
+    <div class="seg" id="styleSeg" data-v="0" role="radiogroup" aria-label="引用格式">
+      <span class="thumb"></span>
+      <button type="button" data-v="0" role="radio">MLA 9</button>
+      <button type="button" data-v="1" role="radio">APA 7</button>
+    </div>
+
+    <div class="status" id="status"><span class="spin"></span><span id="statusText">正在读取页面…</span></div>
+
+    <div id="result" class="hidden">
+      <div class="label"><span id="refLabel">参考文献</span><button class="copy" data-copy="reference">复制</button></div>
+      <div class="box"><div class="cite" id="reference"></div></div>
+
+      <div class="label"><span>文中引用</span><span>页码 <input class="page" id="page" placeholder="可选" /></span></div>
+      <div class="box">
+        <div class="line"><span class="cite" id="paren"></span><button class="copy" data-copy="paren">复制</button></div>
+        <div class="line"><span class="cite" id="narr"></span><button class="copy" data-copy="narr">复制</button></div>
+      </div>
+
+      <div class="filled hidden" id="filled"></div>
+      <div class="missing hidden" id="missing"></div>
+      <div class="note hidden" id="note"></div>
+
+      <div class="form hidden" id="form"></div>
+
+      <div class="foot">
+        <span class="src" id="src"></span>
+        <span class="acts">
+          <button class="link" id="editBtn">编辑</button>
+          <button class="link" id="searchBtn">搜索补全</button>
+          <button class="link" id="redo">重新识别</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- settings view -->
+  <div id="settings" class="settings hidden">
+    <span class="label" style="color:var(--text);font-size:13px">Claude 模型</span>
+    <div class="seg" id="modelSeg" data-v="1" role="radiogroup" aria-label="Claude 模型">
+      <span class="thumb"></span>
+      <button type="button" data-v="0" role="radio">Sonnet 5.5<small>更快 · 更省</small></button>
+      <button type="button" data-v="1" role="radio">Opus 5.5<small>更准确</small></button>
+    </div>
+    <label class="field" for="key">Anthropic API Key</label>
+    <input id="key" type="password" placeholder="sk-ant-..." />
+    <button class="primary" id="save">保存</button>
+    <div id="saveMsg"></div>
+    <p class="hint">Key 只保存在本机浏览器，只发送给 api.anthropic.com。填了 Key 后，信息不全时会自动让 Claude 上网搜索补全，并标出补了哪些。不填 Key 也能用：插件会直接读取网站提供的引用数据。</p>
+  </div>
+
+  <script src="parsers.js"></script>
+  <script src="citation.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

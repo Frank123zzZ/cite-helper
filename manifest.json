@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Cite Helper — APA & MLA 引用助手",
+  "version": "1.0.0",
+  "description": "在任何学术网站或普通网页上一键生成 APA 7 / MLA 9 引用（文末参考文献 + 文中引用），可用 Claude 整理与搜索补全信息。",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "生成引用 (Alt+Shift+C)"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
+  "host_permissions": ["<all_urls>"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+C" }
+    }
+  }
+}
