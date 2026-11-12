@@ -194,6 +194,7 @@ function updateMeta() {
 
   // which fields Claude's web search filled in / corrected
   const d = state.data;
+  renderCred(d);
   const parts = [];
   if (d.filled && d.filled.length) parts.push('Claude 补全了：<b>' + d.filled.join('、') + '</b>');
   if (d.corrected && d.corrected.length) parts.push('更正了：<b>' + d.corrected.join('、') + '</b>');
@@ -212,6 +213,43 @@ function updateMeta() {
   const src = state.data.sources && state.data.sources.length ? state.data.sources.join(' · ') : '网页信息';
   $('src').textContent = '来源：' + src;
   $('src').title = '来源：' + src;
+}
+
+const CRED_LABELS = { high: '高', medium: '中', low: '低' };
+function renderCred(d) {
+  const box = $('cred'), pill = $('credPill'), sum = $('credSum'), ul = $('credReasons');
+  ul.innerHTML = '';
+  sum.textContent = '';
+  pill.className = 'pill';
+  if (!state.settings.apiKey) {
+    box.classList.remove('hidden');
+    pill.className = 'pill wait';
+    pill.textContent = '填写 API Key 后，Claude 会分析这篇文章的可信度';
+    return;
+  }
+  const stale = d.credStatus === 'pending' && Date.now() - (d.at || 0) > 300000;
+  if (d.credStatus === 'pending' && !stale) {
+    box.classList.remove('hidden');
+    pill.className = 'pill wait';
+    pill.innerHTML = '<span class="spin"></span>' + (d.searching ? '补全信息后分析…' : 'Claude 分析中…');
+    return;
+  }
+  if (d.credStatus === 'error' || stale) {
+    box.classList.remove('hidden');
+    pill.className = 'pill wait';
+    pill.textContent = '分析失败' + (d.credError ? '（' + d.credError + '）' : '') + '，可点「重新识别」';
+    return;
+  }
+  if (d.credStatus !== 'done' || !d.cred) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  pill.classList.add(d.cred.level);
+  pill.textContent = CRED_LABELS[d.cred.level] || '中';
+  sum.textContent = d.cred.summary;
+  for (const r of d.cred.reasons || []) {
+    const li = document.createElement('li');
+    li.textContent = r;
+    ul.appendChild(li);
+  }
 }
 
 $('page').addEventListener('input', e => { state.page = e.target.value; render(); });

@@ -29,6 +29,16 @@
     .status.err { color: var(--warn); }
 
     .status.slim { padding: 0 2px 10px; font-size: 12px; }
+    .cred { padding: 8px 10px; border-radius: 8px; background: var(--soft); margin-bottom: 10px; }
+    .cred-head { display: flex; align-items: center; gap: 8px; }
+    .cred-label { flex: none; font-size: 12px; color: var(--muted); }
+    .pill { flex: none; padding: 0 9px; border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 20px; color: #fff; background: #bbb; }
+    .pill.high { background: #2a8; } .pill.medium { background: #e0a030; } .pill.low { background: var(--warn); }
+    .pill.wait { background: none; color: var(--muted); font-weight: 400; padding: 0; display: flex; align-items: center; gap: 6px; }
+    .pill.wait .spin { width: 11px; height: 11px; }
+    .cred-sum { font-size: 12px; color: var(--text); }
+    .cred-reasons { margin: 4px 0 0; padding-left: 1.3em; font-size: 12px; color: var(--muted); }
+    .cred-reasons:empty { display: none; }
     .filled { font-size: 12px; color: var(--muted); margin: -2px 0 8px; padding-left: 8px; border-left: 2px solid var(--accent); }
     .filled b { color: var(--accent); font-weight: 500; }
     .form .cl label { color: var(--accent); }
@@ -95,6 +105,11 @@
       <div class="box">
         <div class="line"><span class="cite" id="paren"></span><button class="copy" data-copy="paren">复制</button></div>
         <div class="line"><span class="cite" id="narr"></span><button class="copy" data-copy="narr">复制</button></div>
+      </div>
+
+      <div class="cred hidden" id="cred">
+        <div class="cred-head"><span class="cred-label">可信度</span><span class="pill" id="credPill"></span><span class="cred-sum" id="credSum"></span></div>
+        <ul class="cred-reasons" id="credReasons"></ul>
       </div>
 
       <div class="filled hidden" id="filled"></div>

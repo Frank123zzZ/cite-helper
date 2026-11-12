@@ -60,13 +60,16 @@ async function resolve(page) {
     const out = await doResolve(page);
     const full = Object.assign({ status: 'done', at: Date.now(), page: slimPage(page) }, out);
     // still incomplete: Claude searches the web right away (no asking); the popup picks up the result from the cache
+    // credibility is analysed once the record is final (after the search, when there is one)
     const settings = await getSettings();
+    if (settings.apiKey) full.credStatus = 'pending';
     if (settings.apiKey && P.missingFields(full.rec).length) {
       full.searching = true;
       await setCache(page.url, full);
       search(page.url).catch(() => {});
     } else {
       await setCache(page.url, full);
+      if (settings.apiKey) assess(page.url);
     }
     return full;
   } catch (e) {
@@ -76,7 +79,7 @@ async function resolve(page) {
 }
 
 function slimPage(p) {
-  return { url: p.url, canonical: p.canonical, host: p.host, title: p.title, doi: p.doi, text: (p.text || '').slice(0, 3000) };
+  return { url: p.url, canonical: p.canonical, host: p.host, title: p.title, doi: p.doi, text: (p.text || '').slice(0, 6000) };
 }
 
 async function doResolve(page) {
@@ -190,15 +193,67 @@ async function search(url) {
     const d = diffRecs(cached.rec, rec);
     const out = Object.assign({}, cached, {
       rec, searched: true, searching: false, notes: found.notes, searchError: '', editStamp: 0,
-      filled: d.filled, corrected: d.corrected, filledKeys: d.keys,
+      filled: d.filled, corrected: d.corrected, filledKeys: d.keys, credStatus: 'pending',
       sources: [...(cached.sources || []).filter(s => s !== 'Claude 搜索'), 'Claude 搜索']
     });
     await setCache(url, out);
+    assess(url);
     return out;
   } catch (e) {
-    await setCache(url, Object.assign({}, cached, { searching: false, editStamp: 0, searchError: String((e && e.message) || e) }));
+    await setCache(url, Object.assign({}, cached, { searching: false, editStamp: 0, credStatus: 'pending', searchError: String((e && e.message) || e) }));
+    assess(url);
     throw e;
   }
+}
+
+// ---------------- credibility: Claude rates how trustworthy the source is (低 / 中 / 高) ----------------
+async function assess(url) {
+  const cached = await getCache(url);
+  if (!cached || !cached.rec) return;
+  let patch;
+  try {
+    const cred = await claudeCredibility(cached.page || {}, cached.rec, cached.sources || []);
+    patch = { cred, credStatus: 'done', credError: '' };
+  } catch (e) {
+    patch = { credStatus: 'error', credError: String((e && e.message) || e) };
+  }
+  const latest = (await getCache(url)) || cached; // keep anything written meanwhile (e.g. the user's edits)
+  await setCache(url, Object.assign({}, latest, patch, { editStamp: 0 }));
+}
+
+const CRED_SCHEMA = {
+  type: 'object',
+  properties: {
+    level: { type: 'string', enum: ['low', 'medium', 'high'] },
+    summary: { type: 'string' },
+    reasons: { type: 'array', items: { type: 'string' } }
+  },
+  required: ['level', 'summary', 'reasons'],
+  additionalProperties: false
+};
+
+async function claudeCredibility(page, rec, sources) {
+  const content = [
+    `Page URL: ${page.url || rec.url}`,
+    `Tab title: ${page.title || ''}`,
+    `Citation metadata (from ${sources.join(', ') || 'the page'}):\n${JSON.stringify(rec)}`,
+    page.text ? `Start of the page text:\n"""\n${page.text.slice(0, 6000)}\n"""` : 'Page text unavailable.'
+  ].join('\n\n');
+
+  const system = `You rate how credible a source is for a student who wants to cite it in academic writing. The user is looking at this page in their browser.
+Weigh: the kind of source and venue (peer-reviewed journal, academic press, government or intergovernmental body, established news outlet, encyclopedia, company/marketing page, personal blog, forum, content farm); the reputation of the publisher, journal or site (known predatory or low-quality venues, retractions you know of); whether authors are named and have relevant expertise; whether claims are backed by evidence, data or references; how current it is for the topic; and signs of commercial purpose, advocacy or one-sided framing.
+level: "high" = peer-reviewed research, academic books, official statistics or a reputable institution with clear authorship and evidence; "medium" = generally reliable but not scholarly or with some limits (quality journalism, reputable organisations' reports and explainers, encyclopedias, preprints not yet peer reviewed, dated material); "low" = anonymous or unverifiable, opinion or marketing, user-generated content, predatory venues, or little or no evidence.
+Judge the source as presented — do not invent facts about it. When the information is thin, say so and lean toward the lower level.
+summary: one short sentence in Simplified Chinese (under 40 characters) giving the main reason for the rating.
+reasons: 2-3 short points in Simplified Chinese (each under 30 characters), e.g. "经同行评审的期刊论文", "作者为该领域研究者", "没有注明作者和来源".`;
+
+  const text = await callClaude({ system, content, schema: CRED_SCHEMA, effort: 'low', maxTokens: 4000 });
+  const o = JSON.parse(text);
+  return {
+    level: ['low', 'medium', 'high'].includes(o.level) ? o.level : 'medium',
+    summary: P.clean(o.summary),
+    reasons: (o.reasons || []).map(P.clean).filter(Boolean).slice(0, 3)
+  };
 }
 
 // which fields the search filled in (were empty) or corrected (were different)
